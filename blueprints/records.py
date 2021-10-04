@@ -42,6 +42,10 @@ def get_records_index():
 
 @records.route('/init', methods=['GET'])
 def get_init():
+    restore_filename = './restore/' + 'records_state0'+'.json'
+    if os.path.isfile(restore_filename):
+        with open(restore_filename, 'r') as f:
+            return json.loads(f.read())
     global records_table
     if records_table is None:
         records_table = get_ai_clinician_instance().MIMICtable
@@ -49,14 +53,15 @@ def get_init():
     
     start_bloc = np.where(records_table['bloc'] == 1)[0].tolist()
 
-    records_array = records_table.to_numpy()
     ai_clinician_instance = get_ai_clinician_instance()
 
-    records_zs = np.hstack(ai_clinician_instance.trans_zs(records_table) + [records_table.loc[:, ['mortality_90d']] - 0.5])
-    records_state = [ai_clinician_instance.cluster_state(records_zs[i:i, :]) for i in range(len(records_zs))]
+    records_state = [int(ai_clinician_instance.cluster_state(records_table.loc[i:i, :])) for i in range(len(records_table))]
 
     records_action = []
-    for i in range(len(records_zs)):
+    for i in range(len(records_table)):
+        vc_action = records_table.loc[i, 'max_dose_vaso']
+        io_action = records_table.loc[i, 'input_4hourly']
+
         vc_action = [i for i in range(len(ai_clinician_instance.vc_bins)) if ai_clinician_instance.vc_bins[i][0] <= vc_action and vc_action <= ai_clinician_instance.vc_bins[i][2]][0]
         io_action = [i for i in range(len(ai_clinician_instance.io_bins)) if ai_clinician_instance.io_bins[i][0] <= io_action and io_action <= ai_clinician_instance.io_bins[i][2]][0]
 
@@ -64,21 +69,23 @@ def get_init():
     
     records_status = [ai_clinician_instance.state_statics(state) for state in records_state]
 
-    records = [records_state[pos:start_bloc[i + 1]] \
-        if i != len(start_bloc) - 1 else \
-            records_state[pos:] for i, pos in enumerate(start_bloc)]
+    result = {'succeed': True, 'records': [{
+                'states': records_state[pos:start_bloc[i + 1]] \
+                    if i != len(start_bloc) - 1 else \
+                        records_state[pos:],
+                'actions': records_action[pos:start_bloc[i + 1]] \
+                    if i != len(start_bloc) - 1 else \
+                        records_action[pos:],
+                'status': records_status[pos:start_bloc[i + 1]] \
+                    if i != len(start_bloc) - 1 else \
+                        records_status[pos:],
+            } for i, pos in enumerate(start_bloc)]}
+
+    with open(restore_filename, 'w') as f:
+        f.write(json.dumps(result))
+
     
-    return {'succeed': True, 'records': [{
-        'states': records_state[pos:start_bloc[i + 1]] \
-            if i != len(start_bloc) - 1 else \
-                records_state[pos:],
-        'actions': records_action[pos:start_bloc[i + 1]] \
-            if i != len(start_bloc) - 1 else \
-                records_action[pos:],
-        'status': records_status[pos:start_bloc[i + 1]] \
-            if i != len(start_bloc) - 1 else \
-                records_status[pos:],
-    } for i, pos in enumerate(start_bloc)]}
+    return result
 
     
 

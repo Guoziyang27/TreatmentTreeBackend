@@ -149,6 +149,7 @@ class AI_Clinician:
         self.MIMICtable = MIMICtable
         self.MIMICzs = MIMICzs
         self.mean_std = (MIMICtable[AI_Clinician.colnorm].mean(), MIMICtable[AI_Clinician.colnorm].std(), np.log(0.1+MIMICtable[AI_Clinician.collog]).mean(), np.log(0.1+MIMICtable[AI_Clinician.collog]).std())
+        self.state_statics_store = [None for _ in range(AI_Clinician.ncl)]
 
     def trans_zs(self, record):
         return [record[AI_Clinician.colbin]-0.5, (record[AI_Clinician.colnorm] - self.mean_std[0]) / self.mean_std[1], (np.log(0.1+record[ AI_Clinician.collog]) - self.mean_std[2]) / self.mean_std[3]]
@@ -190,7 +191,9 @@ class AI_Clinician:
         return States[:n_branch], States_possibility[:n_branch]
 
     def state_statics(self, state_idx):
-
+        
+        if self.state_statics_store[state_idx] is not None:
+            return self.state_statics_store[state_idx]
 
         start_bloc = np.where(self.MIMICtable['bloc'] == 1)[0]
 
@@ -200,7 +203,11 @@ class AI_Clinician:
         same_state_record_his = np.histogram(same_state_record, bins=start_bloc.tolist() + [np.inf])[0]
         same_state_and_mortality_record_his = np.histogram(same_state_and_mortality_record, bins=start_bloc.tolist() + [np.inf])[0]
 
+        statics = {'mortality': sum(same_state_and_mortality_record_his) / sum(same_state_record_his)}
+
+        self.state_statics_store[state_idx] = statics
+
         # mortality = self.MIMICtable.to_numpy()[self.idx == state_idx, 9]
-        return {'mortality': sum(same_state_and_mortality_record_his) / sum(same_state_record_his)}
+        return statics
 
 
