@@ -5,9 +5,6 @@ from scipy.stats import rankdata
 from scipy import stats
 from sklearn.cluster import KMeans
 from models.offpolicy import offpolicy_multiple_eval_010518, offpolicy_eval_tdlearning_with_morta
-import matplotlib.pyplot as plt
-import numpy.matlib
-import mat73
 from icecream import ic
 
 
@@ -70,27 +67,27 @@ class AI_Clinician:
         med = np.array([io, vc])
         uniqueValues, _, actionbloc = np.unique(med, axis=1, return_index=True, return_inverse=True)
 
-        Data_mat = mat73.loadmat('models/data/Data_160219.mat')
+        # Data_mat = mat73.loadmat('models/data/Data_160219.mat')
 
-        # with open('MIMICraw.npy', 'rb') as f:
-        #     MIMICraw = np.load(f, allow_pickle=True)
-        # with open('MIMICzs.npy', 'rb') as f:
-        #     MIMICzs = np.load(f, allow_pickle=True)
-        # with open('recqvi.npy', 'rb') as f:
-        #     recqvi = np.load(f, allow_pickle=True)
-        # with open('idxs.npy', 'rb') as f:
-        #     idxs = np.load(f, allow_pickle=True)
-        # with open('OA.npy', 'rb') as f:
-        #     OA = np.load(f, allow_pickle=True)
-        # with open('allpols.npy', 'rb') as f:
-        #     allpols = np.load(f, allow_pickle=True)
+        with open('models/data/MIMICraw.npy', 'rb') as f:
+            MIMICraw = np.load(f, allow_pickle=True)
+        with open('models/data/MIMICzs.npy', 'rb') as f:
+            MIMICzs = np.load(f, allow_pickle=True)
+        with open('models/data/recqvi.npy', 'rb') as f:
+            recqvi = np.load(f, allow_pickle=True)
+        with open('models/data/idxs.npy', 'rb') as f:
+            idxs = np.load(f, allow_pickle=True)
+        with open('models/data/OA.npy', 'rb') as f:
+            OA = np.load(f, allow_pickle=True)
+        with open('models/data/allpols.npy', 'rb') as f:
+            allpols = np.load(f, allow_pickle=True)
 
-        MIMICraw = Data_mat['MIMICraw']
-        MIMICzs = Data_mat['MIMICzs']
-        recqvi = Data_mat['recqvi']
-        idxs = Data_mat['idxs']
-        OA = Data_mat['OA']
-        allpols = np.array(Data_mat['allpols'], dtype=object)
+        # MIMICraw = Data_mat['MIMICraw']
+        # MIMICzs = Data_mat['MIMICzs']
+        # recqvi = Data_mat['recqvi']
+        # idxs = Data_mat['idxs']
+        # OA = Data_mat['OA']
+        # allpols = np.array(Data_mat['allpols'], dtype=object)
         
         ## IDENTIFIES BEST MODEL HERE
         recqvi = np.delete(recqvi, np.s_[30:], 1)

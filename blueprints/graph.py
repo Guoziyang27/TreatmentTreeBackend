@@ -362,8 +362,6 @@ def get_one_node():
     save_state['graph'] = [{i:node[i] for i in node if i!='new'} for node in graph]
     save_state['node_id_top'] = node_id_top
 
-    with open('debug.json', 'w') as f:
-        f.write(json.dumps({'succeed': True, 'graph': graph}))
     return {'succeed': True, 'graph': graph}
 
 
@@ -499,7 +497,4 @@ def get_hide_actions():
     node['open'] = False
 
     save_state['graph'] = graph
-
-    # with open('debug.json', 'w') as f:
-    #     f.write(json.dumps({'succeed': True, 'graph': graph}))
     return {'succeed': True, 'graph': graph}

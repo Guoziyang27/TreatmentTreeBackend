@@ -177,7 +177,7 @@ def get_record_sumerization_index():
         'column_id': value_records.columns.tolist().index('PaO2_FiO2'),
         'unit': 'mmHg',
         'type': 'bin',
-        'bins': [100, 200],
+        'bins': [200, 400],
         'labels': ['Severe', 'Moderate', 'Mild'],
         'colors': [0,1,2]
     }, {
@@ -185,7 +185,7 @@ def get_record_sumerization_index():
         'column_id': value_records.columns.tolist().index('SysBP'),
         'unit': 'mmHg',
         'type': 'bin',
-        'bins': [120, 140],
+        'bins': [80, 120],
         'labels': ['Normal', 'Prehypertension', 'Hypertension'],
         'colors': [2,1,0]
     }, {
@@ -193,7 +193,7 @@ def get_record_sumerization_index():
         'column_id': value_records.columns.tolist().index('GCS'),
         'unit': '',
         'type': 'bin',
-        'bins': [8, 12],
+        'bins': [12, 20],
         'labels': ['Severe', 'Moderate', 'Mild'],
         'colors': [0,1,2]
     }, {
