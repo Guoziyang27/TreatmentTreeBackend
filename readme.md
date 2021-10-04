@@ -20,3 +20,5 @@ Unzip it and put it under this folder `models/`.
 ```
 python app.py
 ```
+
+This will run a backend on port 5001 of your localhost.
