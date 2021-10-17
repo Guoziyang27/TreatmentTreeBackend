@@ -40,6 +40,11 @@ def get_records_index():
             'weight': records_table.loc[pos, 'Weight_kg']
     } for pos in start_bloc]}
 
+@records.route('/filter', methods=['GET'])
+def get_filter_records():
+
+    pass
+
 @records.route('/init', methods=['GET'])
 def get_init():
     restore_filename = './restore/' + 'records_state0'+'.json'
@@ -83,8 +88,6 @@ def get_init():
 
     with open(restore_filename, 'w') as f:
         f.write(json.dumps(result))
-
-    
     return result
 
     
@@ -178,6 +181,7 @@ def get_record_sumerization_index():
         'unit': 'mmHg',
         'type': 'bin',
         'bins': [200, 400],
+        'range': [0.0, 2342.857142857143],
         'labels': ['Severe', 'Moderate', 'Mild'],
         'colors': [0,1,2]
     }, {
@@ -186,6 +190,7 @@ def get_record_sumerization_index():
         'unit': 'mmHg',
         'type': 'bin',
         'bins': [80, 120],
+        'range': [0, 340.5],
         'labels': ['Normal', 'Prehypertension', 'Hypertension'],
         'colors': [2,1,0]
     }, {
@@ -194,6 +199,7 @@ def get_record_sumerization_index():
         'unit': '',
         'type': 'bin',
         'bins': [12, 20],
+        'range': [15.0, 15.0],
         'labels': ['Severe', 'Moderate', 'Mild'],
         'colors': [0,1,2]
     }, {
@@ -202,6 +208,7 @@ def get_record_sumerization_index():
         'unit': '/L',
         'type': 'range',
         'bins': [4.5, 11],
+        'range': [0.1, 294.5],
         'labels': ['Low', 'Normal', 'High'],
         'colors': [4,5,6],
     }, {
@@ -210,6 +217,7 @@ def get_record_sumerization_index():
         'unit': '',
         'type': 'range',
         'bins': [0.5, 0.7],
+        'range': [0, 2],
         'labels': ['Low', 'Normal', 'High'],
         'colors': [4,5,6],
     }, {
@@ -218,6 +226,7 @@ def get_record_sumerization_index():
         'unit': 'mEq/L',
         'type': 'range',
         'bins': [-2,2],
+        'range': [-50.0, 100.0],
         'labels': ['Low', 'Normal', 'High'],
         'colors': [4,5,6],
     }, {
@@ -226,6 +235,7 @@ def get_record_sumerization_index():
         'unit': 'mg/dL',
         'type': 'range',
         'bins': [0.6,1.2],
+        'range': [0.0, 117.0],
         'labels': ['Low', 'Normal', 'High'],
         'colors': [4,5,6],
     }, {
@@ -234,6 +244,7 @@ def get_record_sumerization_index():
         'unit': 'mg/dL',
         'type': 'range',
         'bins': [8.3,10.3],
+        'range': [0.0, 14.6],
         'labels': ['Low', 'Normal', 'High'],
         'colors': [4,5,6],
     }, {
@@ -242,6 +253,7 @@ def get_record_sumerization_index():
         'unit': 'K/uL',
         'type': 'range',
         'bins': [150,450],
+        'range': [5.0, 1220.0],
         'labels': ['Low', 'Normal', 'High'],
         'colors': [4,5,6],
     }]
