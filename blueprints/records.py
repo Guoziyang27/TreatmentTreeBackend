@@ -5,6 +5,7 @@ from numpy import number
 import pandas as pd
 import numpy as np
 from functools import partial
+import random
 
 from flask import Blueprint, request
 
@@ -40,10 +41,61 @@ def get_records_index():
             'weight': records_table.loc[pos, 'Weight_kg']
     } for pos in start_bloc]}
 
+
+@records.route('/filter_init', methods=['GET'])
+def get_filtr_init():
+
+    global records_table
+    if records_table is None:
+        records_table = get_ai_clinician_instance().MIMICtable
+        records_table = records_table.loc[~get_ai_clinician_instance().train, :].reset_index(drop=True)
+    
+    return {'succeed': True, 'filter_index': {
+        'gender': [0, 1],
+        'age': [records_table.age.min(), records_table.age.max()],
+        'weight': [records_table.Weight_kg.min(), records_table.Weight_kg.max()]
+    }}
+
+filter_records_index = None
+
 @records.route('/filter', methods=['GET'])
 def get_filter_records():
+    gender = int(request.args.get('gender'))
+    age = list(map(float, request.args.get('age').split(',')))
+    weight = list(map(float, request.args.get('weight').split(',')))
+    random_limit = int(request.args.get('random'))
 
-    pass
+    global records_table
+    if records_table is None:
+        records_table = get_ai_clinician_instance().MIMICtable
+        records_table = records_table.loc[~get_ai_clinician_instance().train, :].reset_index(drop=True)
+    
+    start_bloc = np.where(records_table['bloc'] == 1)[0].tolist()
+
+    global filter_records_index
+    filter_records_index = [
+        i for i, pos in enumerate(start_bloc) if records_table.loc[pos, 'gender'] == gender \
+        and records_table.loc[pos, 'age'] >= age[0] \
+        and records_table.loc[pos, 'age'] <= age[1] \
+        and records_table.loc[pos, 'Weight_kg'] >= weight[0] \
+        and records_table.loc[pos, 'Weight_kg'] <= weight[1]]
+    
+    filter_sample = random.sample(filter_records_index, random_limit if random_limit < len(filter_records_index) else len(filter_records_index))
+    
+    return {'succeed': True, 'records_index': filter_sample}
+
+@records.route('/filter_refresh', methods=['GET'])
+def get_filter_refresh():
+    random_limit = int(request.args.get('random'))
+
+    global filter_records_index
+    if filter_records_index is None:
+        return {'succeed': False, 'info': 'No initial filter index pool built.'}
+    
+    filter_sample = random.sample(filter_records_index, random_limit if random_limit < len(filter_records_index) else len(filter_records_index))
+    
+    return {'succeed': True, 'records_index': filter_sample}
+
 
 @records.route('/init', methods=['GET'])
 def get_init():
@@ -91,6 +143,7 @@ def get_init():
     return result
 
     
+
 
 
 
