@@ -11,11 +11,12 @@ from flask import Blueprint, request
 from icecream import ic
 import os
 
-sys.path.append("..")
+# sys.path.append("..")
 from models.ai_clinician import get_instance as get_ai_clinician_instance
 from models.ai_clinician import AI_Clinician
 from models.load_state_autoencoder import get_instance as get_state_predictor_instance
-from models.load_state_autoencoder import StateAutoencoder
+from models.load_state_autoencoder import RecordPredictor
+from models.submodels.AE_model import AE
 
 graph_bp = Blueprint("graph", __name__)
 
@@ -64,10 +65,6 @@ def init_graph_one_node(init_node, init_record, ai, state_predictor, MAX_LAYER_N
         best_action = current_node['actions'][0]['action']
         prev_records = pd.concat([prev_records, current_record], ignore_index=True)
         prev_actions.append(best_action)
-
-        if len(prev_records) > state_predictor.forward_num:
-            prev_records = prev_records.drop(prev_records.index[0])
-            prev_actions.pop(0)
         
         new_record = state_predictor.predict(prev_records, prev_actions)
 
@@ -203,7 +200,7 @@ def get_initial_graph():
             'mortality': ai.state_statics(current_state)['mortality'],
             'prev_node': last_real_chain_id if last_real_chain_id != -1 else 'no_prev',
             'prev_action': last_real_chain_action if last_real_chain_action != -1 else 'no_prev',
-            'record': records.loc[i:i, StateAutoencoder.colbin + StateAutoencoder.colnorm + StateAutoencoder.collog].to_numpy().tolist(),
+            'record': records.loc[i:i, RecordPredictor.colbin + RecordPredictor.colnorm + RecordPredictor.collog].to_numpy().tolist(),
             'actions': [{
                 'action': int(actions[i]),
                 'possibility': float(actions_poss[i]),
@@ -232,10 +229,6 @@ def get_initial_graph():
         
         prev_records = pd.concat([prev_records, records.loc[i:i, :]], ignore_index=True)
         prev_actions.append(io_action * 5 + vc_action)
-
-        if len(prev_records) > state_predictor.forward_num:
-            prev_records = prev_records.drop(prev_records.index[0])
-            prev_actions.pop(0)
 
         last_real_chain_id = mark_pos
         last_real_chain_action = io_action * 5 + vc_action
@@ -311,8 +304,8 @@ def get_one_node():
 
 
 
-    for _ in range(state_predictor.forward_num):
-        prev_records = pd.concat([pd.DataFrame(cur_node['record'], columns=StateAutoencoder.colbin + StateAutoencoder.colnorm + StateAutoencoder.collog), prev_records], ignore_index=True)
+    while(True):
+        prev_records = pd.concat([pd.DataFrame(cur_node['record'], columns=RecordPredictor.colbin + RecordPredictor.colnorm + RecordPredictor.collog), prev_records], ignore_index=True)
         prev_actions.append(cur_next_action)
 
         if cur_node['prev_node'] == 'no_prev':

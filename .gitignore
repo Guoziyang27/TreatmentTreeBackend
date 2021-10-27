@@ -142,3 +142,6 @@ cython_debug/
 
 models/data/
 test_model/
+
+.idea/
+

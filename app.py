@@ -1,4 +1,3 @@
-
 import json
 
 from flask import Flask
@@ -8,14 +7,13 @@ from flask import request
 from blueprints.graph import graph_bp as graph
 from blueprints.records import records
 
+from models.submodels.AE_model import AE
 
 app = Flask(__name__)
 CORS(app)
 
-
 app.register_blueprint(graph, url_prefix='/graph')
 app.register_blueprint(records, url_prefix='/records')
-
 
 
 @app.route('/', methods=['GET'])

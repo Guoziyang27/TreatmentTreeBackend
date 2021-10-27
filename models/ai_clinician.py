@@ -16,6 +16,37 @@ def get_instance():
         ai_instance = AI_Clinician()
     return ai_instance
 
+def get_policy_bins(MIMICtable):
+    reformat5 = MIMICtable.to_numpy()
+    iol = MIMICtable.columns.tolist().index('input_4hourly')
+    vcl = MIMICtable.columns.tolist().index('max_dose_vaso')
+    a = reformat5[:, iol]                   #IV fluid
+    a = rankdata(a[a>0]) / len(a[a>0])   # excludes zero fluid (will be action 1)
+    
+    iof = np.floor((a+0.2499999999)*4)  #converts iv volume in 4 actions
+    a = reformat5[:, iol]
+    a = a>0  #location of non-zero fluid in big matrix
+    io = np.ones(len(reformat5))  #array of ones, by default     
+    io[a] = iof + 1   #where more than zero fluid given: save actual action
+    vc = np.copy(reformat5[:, vcl])
+    vcr = rankdata(vc[vc != 0]) / len(vc[vc != 0])
+    vcr = np.floor((vcr+0.249999999999)*4)  #converts to 4 bins
+    vcr[vcr == 0] = 1
+    vc[vc != 0] = vcr + 1
+    vc[vc == 0] = 1
+    ma1 = np.array([ np.median(reformat5[io==1,iol]),  np.median(reformat5[io==2,iol]),  np.median(reformat5[io==3,iol]),  np.median(reformat5[io==4,iol]),  np.median(reformat5[io==5,iol])])
+    #median dose of drug in all bins
+    ma2 = np.array([ np.median(reformat5[vc==1,vcl]),  np.median(reformat5[vc==2,vcl]),  np.median(reformat5[vc==3,vcl]),  np.median(reformat5[vc==4,vcl]),  np.median(reformat5[vc==5,vcl])])
+    
+    med = np.array([io, vc])
+    uniqueValues, _, actionbloc = np.unique(med, axis=1, return_index=True, return_inverse=True)
+
+    vc_bins = [[min(reformat5[vc==i,vcl]), np.median(reformat5[vc==i,vcl]), max(reformat5[vc==i,vcl])] for i in range(1,6)]
+    io_bins = [[min(reformat5[io==i,iol]), np.median(reformat5[io==i,iol]), max(reformat5[io==i,iol])] for i in range(1,6)]
+
+    return vc, io, vc_bins, io_bins
+
+
 class AI_Clinician:
 
     # interested 47 columns
@@ -38,34 +69,6 @@ class AI_Clinician:
 
     def __init__(self):
         MIMICtable = pd.read_csv('models/data/final_table.csv')
-
-
-        # find patients who died in ICU during data collection period
-        reformat5 = MIMICtable.to_numpy()
-        iol = MIMICtable.columns.tolist().index('input_4hourly')
-        vcl = MIMICtable.columns.tolist().index('max_dose_vaso')
-
-        nact = AI_Clinician.nra ** 2
-        a = reformat5[:, iol]                   #IV fluid
-        a = rankdata(a[a>0]) / len(a[a>0])   # excludes zero fluid (will be action 1)
-        
-        iof = np.floor((a+0.2499999999)*4)  #converts iv volume in 4 actions
-        a = reformat5[:, iol]
-        a = a>0  #location of non-zero fluid in big matrix
-        io = np.ones(len(reformat5))  #array of ones, by default     
-        io[a] = iof + 1   #where more than zero fluid given: save actual action
-        vc = np.copy(reformat5[:, vcl])
-        vcr = rankdata(vc[vc != 0]) / len(vc[vc != 0])
-        vcr = np.floor((vcr+0.249999999999)*4)  #converts to 4 bins
-        vcr[vcr == 0] = 1
-        vc[vc != 0] = vcr + 1
-        vc[vc == 0] = 1
-        ma1 = np.array([ np.median(reformat5[io==1,iol]),  np.median(reformat5[io==2,iol]),  np.median(reformat5[io==3,iol]),  np.median(reformat5[io==4,iol]),  np.median(reformat5[io==5,iol])])
-        #median dose of drug in all bins
-        ma2 = np.array([ np.median(reformat5[vc==1,vcl]),  np.median(reformat5[vc==2,vcl]),  np.median(reformat5[vc==3,vcl]),  np.median(reformat5[vc==4,vcl]),  np.median(reformat5[vc==5,vcl])])
-        
-        med = np.array([io, vc])
-        uniqueValues, _, actionbloc = np.unique(med, axis=1, return_index=True, return_inverse=True)
 
         # Data_mat = mat73.loadmat('models/data/Data_160219.mat')
 
@@ -122,19 +125,7 @@ class AI_Clinician:
         kmeans = KMeans(n_clusters=AI_Clinician.ncl, random_state=0, n_init=AI_Clinician.nclustering, max_iter=30, n_jobs=2).fit(C)
         idx = kmeans.predict(MIMICzs)  #N-D nearest point search: look for points closest to each centroid
 
-        self.vc = vc
-        self.io = io
-        self.vc_bins = [[min(reformat5[vc==i,vcl]), np.median(reformat5[vc==i,vcl]), max(reformat5[vc==i,vcl])] for i in range(1,6)]
-        self.io_bins = [[min(reformat5[io==i,iol]), np.median(reformat5[io==i,iol]), max(reformat5[io==i,iol])] for i in range(1,6)]
-
-        print('VASOPRESSORS')
-        for i in range(1, 6):
-            print([min(reformat5[vc==i,vcl]), np.median(reformat5[vc==i,vcl]), max(reformat5[vc==i,vcl])])
-
-
-        print('IV FLUIDS')
-        for i in range(1, 6):
-            print([min(reformat5[io==i,iol]), np.median(reformat5[io==i,iol]), max(reformat5[io==i,iol])])
+        self.vc, self.io, self.vc_bins, self.io_bins = get_policy_bins(MIMICtable)
 
         self.idx = idx
         self.Qon = Qon
