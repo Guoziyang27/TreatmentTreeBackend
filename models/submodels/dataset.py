@@ -8,6 +8,7 @@ import joblib
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 def move_to_cuda(sample):
     if len(sample) == 0:
         return {}
@@ -27,9 +28,9 @@ def move_to_cuda(sample):
 
     return _move_to_cuda(sample)
 
+
 class Dataset(data.Dataset):
     def __init__(self, ae_model, opt):
-
         # if not os.path.isfile(dump_sequences_path):
         MIMICtable = pd.read_csv('../data/final_table.csv')
         MIMICarray = MIMICtable.to_numpy()
@@ -45,31 +46,33 @@ class Dataset(data.Dataset):
             for i in range(len(MIMICzs)):
                 input_features = torch.from_numpy(MIMICzs[i]).to(device, dtype=torch.float)
                 # input_features = input_features.to(device, dtype=torch.float)
-                hidden, _ = ae_model.encode(input_features)
+                # hidden, _ = ae_model.encode(input_features)
 
-                embedding.append(hidden.reshape([1, -1]))
+                # embedding.append(hidden.reshape([1, -1]))
+                embedding.append(input_features.reshape(1,-1))
 
         embedding = torch.cat(embedding)
 
-        self.sequences = [embedding[start_bloc[i]:start_bloc[i+1]] \
-            if i < len(start_bloc) - 1 else \
-                embedding[start_bloc[i]:] \
-                    for i in range(len(start_bloc))]
+        self.sequences = [embedding[start_bloc[i]:start_bloc[i + 1]] \
+                              if i < len(start_bloc) - 1 else \
+                              embedding[start_bloc[i]:] \
+                          for i in range(len(start_bloc))]
         self.sequences = [seq for seq in self.sequences if seq.shape[0] > 1]
         #     joblib.dump(self.sequences, dump_sequences_path)
         # else:
         #     self.sequences = joblib.load(dump_sequences_path)
-        
+
         self.max_len = max([seq.shape[0] for seq in self.sequences])
         self.min_len = min([seq.shape[0] for seq in self.sequences])
 
     def __getitem__(self, idx):
-
         input_seq = self.sequences[idx][:-1]
         target_seq = self.sequences[idx][1:]
 
-        return torch.cat((input_seq, torch.zeros(self.max_len - 1 - input_seq.shape[0], input_seq.shape[1]))), input_seq.shape[0], \
-            torch.cat((target_seq, torch.zeros(self.max_len - 1 - target_seq.shape[0], target_seq.shape[1]))), target_seq.shape[0]
+        return torch.cat((input_seq, torch.zeros(self.max_len - 1 - input_seq.shape[0], input_seq.shape[1]))), \
+               input_seq.shape[0], \
+               torch.cat((target_seq, torch.zeros(self.max_len - 1 - target_seq.shape[0], target_seq.shape[1]))), \
+               target_seq.shape[0]
 
     def __len__(self):
         return len(self.sequences)

@@ -15,7 +15,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 HIDDEN_DIMS = 12
 N_LAYERS = 1
-
+IN_FEATURES = 47
 
 def get_dataset(ae_model, opt):
     data = Dataset(ae_model, opt)
@@ -39,15 +39,17 @@ def train_rnn(opt):
     ae_model = AE(ae_study.best_trial, ae_study.best_trial.params['latent_n_units'])
     ae_model.load_state_dict(save_pth['model_state'])
 
-    model = RNN(ae_model.latent_features, ae_model.latent_features, HIDDEN_DIMS, N_LAYERS)
+    # model = RNN(ae_model.latent_features, ae_model.latent_features, HIDDEN_DIMS, N_LAYERS)
+    model = RNN(IN_FEATURES, IN_FEATURES, HIDDEN_DIMS, N_LAYERS)
+
 
     batch_size = 16
 
-    epoch_num = 50
+    epoch_num = 10
 
     criterion = nn.MSELoss()
 
-    optimizer = torch.optim.SGD(params=model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = torch.optim.SGD(params=model.parameters(), lr=0.0001, momentum=0.9)
 
     best_score = 0
 
@@ -72,18 +74,20 @@ def train_rnn(opt):
 
             input_seq, input_len, target_seq, target_len = input_seq[indices.tolist()], input_len[indices.tolist()], \
                                                            target_seq[indices.tolist()], target_len[indices.tolist()]
+            for i in range(1, input_len.max() + 1):
+                input_seq_sub = input_seq[:, :i, :]
+                input_len_sub = input_len.clone()
+                input_len_sub[input_len_sub > i] = i
+                input_pack = pack_padded_sequence(input_seq_sub, input_len_sub, batch_first=True)
 
-            input_pack = pack_padded_sequence(input_seq, input_len, batch_first=True)
-
-            optimizer.zero_grad()
-            output, hidden = model(input_pack)
-            output = torch.cat(
-                (output, torch.zeros(output.shape[0], max_seq_len - 1 - output.shape[1], output.shape[2])), dim=1)
-            # output, _ = pad_packed_sequence(output, batch_first=True)
-            output = output.to(device)
-            loss = criterion(output, target_seq)
-            loss.backward(retain_graph=True)
-            optimizer.step()
+                optimizer.zero_grad()
+                output, hidden = model(input_pack)
+                # output = output[:, -1, :]
+                # output, _ = pad_packed_sequence(output, batch_first=True)
+                output = output.to(device)
+                loss = criterion(output[target_len >= i], target_seq[target_len >= i, i - 1, :])
+                loss.backward(retain_graph=True)
+                optimizer.step()
 
         model.eval()
 
@@ -99,18 +103,20 @@ def train_rnn(opt):
                 input_seq, input_len, target_seq, target_len = input_seq[indices.tolist()], input_len[indices.tolist()], \
                                                                target_seq[indices.tolist()], target_len[
                                                                    indices.tolist()]
+                for i in range(1, input_len.max() + 1):
+                    input_seq_sub = input_seq[:, :i, :]
+                    input_len_sub = input_len.clone()
+                    input_len_sub[input_len_sub > i] = i
+                    input_pack = pack_padded_sequence(input_seq_sub, input_len_sub, batch_first=True)
 
-                input_pack = pack_padded_sequence(input_seq, input_len, batch_first=True)
+                    output, hidden = model(input_pack)
+                    # output = output[:, -1, :]
+                    # output, _ = pad_packed_sequence(output, batch_first=True)
+                    output = output.to(device)
+                    loss = criterion(output[target_len >= i], target_seq[target_len >= i, i - 1, :])
 
-                output, hidden = model(input_pack)
-
-                output = torch.cat(
-                    (output, torch.zeros(output.shape[0], max_seq_len - 1 - output.shape[1], output.shape[2])), dim=1)
-
-                loss = criterion(output, target_seq)
-
-                loss_total += loss.item()
-                iter_num += 1
+                    loss_total += loss.item()
+                    iter_num += 1
         print(loss_total, iter_num, loss_total / iter_num)
 
     save_model(opt['rnn_path'])

@@ -12,7 +12,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 IN_FEATURES = 47
 BATCH_SIZE = 16
 EPOCHS = 20
-M_N = 0.05
+M_N = 0.005
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -46,7 +46,7 @@ def get_dataset():
 class AE(nn.Module):
     def __init__(self, trial, latent_features):
         super().__init__()
-        self.n_layers = trial.suggest_int("n_layers", 1, 5)
+        self.n_layers = trial.suggest_int("n_layers", 3, 5)
         # self.decoder_n_layers = trial.suggest_int("dec_n_layers", 1, 5)
 
         # encoder
@@ -131,11 +131,11 @@ class AE(nn.Module):
 
 
 def objective(trial):
-    latent_features = trial.suggest_int("latent_n_units", 4, IN_FEATURES)
+    latent_features = trial.suggest_int("latent_n_units", 20, IN_FEATURES)
     model = AE(trial, latent_features).to(device)
 
     optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
-    lr = trial.suggest_loguniform("lr", 1e-5, 1e-1)
+    lr = trial.suggest_loguniform("lr", 1e-7, 1e-5)
     optimizer = getattr(torch.optim, optimizer_name)(model.parameters(), lr=lr)
 
     criterion = nn.MSELoss()
