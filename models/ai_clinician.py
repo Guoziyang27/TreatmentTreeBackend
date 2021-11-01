@@ -1,19 +1,20 @@
 import copy
+import numpy
+
 import numpy as np
 import pandas as pd
 from scipy.stats import rankdata
 from scipy import stats
 from sklearn.cluster import KMeans
-from models.offpolicy import offpolicy_multiple_eval_010518, offpolicy_eval_tdlearning_with_morta
 from icecream import ic
 
 
 ai_instance = None
 
-def get_instance():
+def get_instance(data_pth=None):
     global ai_instance
     if ai_instance is None:
-        ai_instance = AI_Clinician()
+        ai_instance = AI_Clinician(data_pth)
     return ai_instance
 
 def get_policy_bins(MIMICtable):
@@ -67,23 +68,28 @@ class AI_Clinician:
     nra = 5                     # nr of actions (2 to 10)
     ncv = 5                     # nr of crossvalidation runs (each is 80# training / 20# test)
 
-    def __init__(self):
-        MIMICtable = pd.read_csv('models/data/final_table.csv')
+    def __init__(self, data_pth=None):
+        if data_pth is None:
+            data_pth = 'models/data/'
+        print('Reading data ', end='')
+        MIMICtable = pd.read_csv(data_pth + 'final_table.csv')
 
-        # Data_mat = mat73.loadmat('models/data/Data_160219.mat')
+        # Data_mat = mat73.loadmat(data_pth + 'Data_160219.mat')
 
-        with open('models/data/MIMICraw.npy', 'rb') as f:
+        with open(data_pth + 'MIMICraw.npy', 'rb') as f:
             MIMICraw = np.load(f, allow_pickle=True)
-        with open('models/data/MIMICzs.npy', 'rb') as f:
+        with open(data_pth + 'MIMICzs.npy', 'rb') as f:
             MIMICzs = np.load(f, allow_pickle=True)
-        with open('models/data/recqvi.npy', 'rb') as f:
+        with open(data_pth + 'recqvi.npy', 'rb') as f:
             recqvi = np.load(f, allow_pickle=True)
-        with open('models/data/idxs.npy', 'rb') as f:
+        with open(data_pth + 'idxs.npy', 'rb') as f:
             idxs = np.load(f, allow_pickle=True)
-        with open('models/data/OA.npy', 'rb') as f:
+        with open(data_pth + 'OA.npy', 'rb') as f:
             OA = np.load(f, allow_pickle=True)
-        with open('models/data/allpols.npy', 'rb') as f:
+        with open(data_pth + 'allpols.npy', 'rb') as f:
             allpols = np.load(f, allow_pickle=True)
+
+        print('[DONE]')
 
         # MIMICraw = Data_mat['MIMICraw']
         # MIMICzs = Data_mat['MIMICzs']
@@ -102,7 +108,7 @@ class AI_Clinician:
         bestpol = r[max(r[:,23]) == r[:,23], 0]   # model maximising 95# LB of value of AI policy in MIMIC test set
 
         ## RECOVER BEST MODEL and TEST IT
-        print('RECOVER BEST MODEL')
+        print('Recovering the best model ', end='')
         a = np.hstack(allpols[:, 0])
         outcome = 9 #   HOSPITAL MORTALITY = 8 / 90d MORTA = 10
         ii = np.isin(a, bestpol) #position of best model in the array allpols
@@ -124,12 +130,19 @@ class AI_Clinician:
 
         kmeans = KMeans(n_clusters=AI_Clinician.ncl, random_state=0, n_init=AI_Clinician.nclustering, max_iter=30, n_jobs=2).fit(C)
         idx = kmeans.predict(MIMICzs)  #N-D nearest point search: look for points closest to each centroid
+        print('[DONE]')
+
+        center_cluster_id = kmeans.predict(C)
+        center_cluster_pos = np.zeros(AI_Clinician.ncl, dtype=np.int)
+        for i in range(len(center_cluster_id)):
+            center_cluster_pos[center_cluster_id[i]] = i
 
         self.vc, self.io, self.vc_bins, self.io_bins = get_policy_bins(MIMICtable)
 
         self.idx = idx
         self.Qon = Qon
         self.kmeans = kmeans
+        self.kmeans_center = C[center_cluster_pos]
         self.train = train
         self.transitionr2 = transitionr2
         self.qldata3train = qldata3train
@@ -162,10 +175,10 @@ class AI_Clinician:
         recordzs[:, 2] = np.log(recordzs[:, 2] + 6)   # MAX DOSE NORAD 
         recordzs[:, 44] = 2 * recordzs[:, 44]   # increase weight of this variable
 
-        predict_idx = self.kmeans.predict(recordzs)[0]
+        predict_idx = self.kmeans.predict(recordzs)
 
         return predict_idx
-    
+
     def predict_action(self, state_idx, n_branch=3):
         Qs = np.argsort(self.Qon[state_idx, :])[::-1]
         Qs_possibility = np.sort(self.Qon[state_idx, :])[::-1]
@@ -198,4 +211,32 @@ class AI_Clinician:
         # mortality = self.MIMICtable.to_numpy()[self.idx == state_idx, 9]
         return statics
 
+    def predict_record(self, state_id):
+        record_zs = self.kmeans_center[state_id]
+        preds = pd.DataFrame([record_zs], columns=AI_Clinician.colbin + AI_Clinician.colnorm + AI_Clinician.collog)
 
+        preds.loc[:, 'max_dose_vaso'] = np.exp(preds.loc[:, 'max_dose_vaso']) - 6  # MAX DOSE NORAD
+        preds.loc[:, 'input_4hourly'] = preds.loc[:, 'input_4hourly'] / 2  # increase weight of input_4hourly
+
+        # print(preds)
+
+        for col in AI_Clinician.colbin:
+            if col != 'max_dose_vaso':
+                preds.loc[preds[col] > 0, col] = 1
+                preds.loc[preds[col] <= 0, col] = 0
+            else:
+                preds[col] += 0.5
+
+        for i, col in enumerate(AI_Clinician.colnorm + AI_Clinician.collog):
+            if i < len(AI_Clinician.colnorm):
+                preds[col] = preds[col] * self.mean_std[1][i] + self.mean_std[0][i]
+            else:
+                preds[col] = np.exp(preds[col] * self.mean_std[3][i - len(AI_Clinician.colnorm)] + self.mean_std[2][i - len(AI_Clinician.colnorm)]) - 0.1
+        return preds
+
+
+if __name__ == '__main__':
+    data_pth = 'data/'
+    ai_clinician = AI_Clinician(data_pth)
+    print(ai_clinician.kmeans_center)
+    print(ai_clinician.kmeans.predict(ai_clinician.kmeans_center))

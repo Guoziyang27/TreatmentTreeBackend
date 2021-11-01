@@ -14,7 +14,7 @@ import os
 # sys.path.append("..")
 from models.ai_clinician import get_instance as get_ai_clinician_instance
 from models.ai_clinician import AI_Clinician
-from models.record_predictor import get_instance as get_state_predictor_instance
+from models.record_predictor import get_instance as get_record_predictor_instance
 from models.record_predictor import RecordPredictor
 from models.submodels.AE_model import AE
 
@@ -23,14 +23,11 @@ graph_bp = Blueprint("graph", __name__)
 save_state = {'graph': None, 'ai_clinician': None, 'state_predictor': None, 'node_id_top': 0}
 
 
-def init_graph_one_node(init_node, init_record, ai, state_predictor, MAX_LAYER_NUM, lim_action, node_id_top, layer_id,
-                        prev_records, prev_actions, real_action, branch_root):
-    record = init_record
+def init_graph_one_node(init_node, init_state, ai, state_predictor, MAX_LAYER_NUM, lim_action, node_id_top, layer_id,
+                        prev_states, prev_actions, real_action, branch_root):
     graph = []
     current_node_id = init_node['node_id']
-    current_record = record
-
-    current_state = ai.cluster_state(current_record)
+    current_state = init_state
 
     graph.append(init_node)
 
@@ -63,17 +60,21 @@ def init_graph_one_node(init_node, init_record, ai, state_predictor, MAX_LAYER_N
         if len(current_node['actions']) == 0:
             break
         best_action = current_node['actions'][0]['action']
-        prev_records = pd.concat([prev_records, current_record], ignore_index=True)
+        # prev_records = pd.concat([prev_records, current_record], ignore_index=True)
+        prev_states.append(current_state)
         prev_actions.append(best_action)
 
-        new_record = state_predictor.predict(prev_records, prev_actions)
-
-        current_state = ai.cluster_state(new_record)
+        current_state = state_predictor.predict(prev_states, prev_actions)
 
         branch_id += lim_action << branch_layer
         branch_layer += 1
 
         next_actions, next_actions_poss = predict_action_fn(state_idx=current_state)
+
+        def action_real_value(action):
+            io_action = action // 5
+            vc_action = action % 5
+            return [str(round(ai.io_bins[io_action][1] * 100) / 100) + 'µg/kg/min', str(round(ai.vc_bins[vc_action][1] * 100) / 100) + 'mL/4h']
 
         graph.append({
             'node_id': node_id_top,
@@ -84,10 +85,11 @@ def init_graph_one_node(init_node, init_record, ai, state_predictor, MAX_LAYER_N
             'mortality': ai.state_statics(current_state)['mortality'],
             'prev_node': current_node_id,
             'prev_action': int(best_action),
-            'record': new_record.to_numpy().tolist(),
+            # 'record': new_record.to_numpy().tolist(),
             'state_id': int(current_state),
             'actions': [{
                 'action': int(next_actions[i]),
+                'action_real': action_real_value(int(next_actions[i])),
                 'possibility': float(next_actions_poss[i]),
                 'open': True if i == 0 else False,
                 'next_nodes': [],
@@ -99,7 +101,6 @@ def init_graph_one_node(init_node, init_record, ai, state_predictor, MAX_LAYER_N
         node_id_top += 1
 
         current_node_id = node_id_top - 1
-        current_record = new_record
 
     graph.pop(0)
 
@@ -113,10 +114,10 @@ def load_AI_clinician():
     return save_state['ai_clinician']
 
 
-def load_state_autoencoder():
+def load_state_predictor():
     global save_state
     if save_state['state_predictor'] is None:
-        save_state['state_predictor'] = get_state_predictor_instance()
+        save_state['state_predictor'] = get_record_predictor_instance()
     return save_state['state_predictor']
 
 
@@ -133,7 +134,7 @@ def get_initial_graph():
             return res
 
     ai = load_AI_clinician()
-    state_predictor = load_state_autoencoder()
+    state_predictor = load_state_predictor()
 
     records_table = ai.MIMICtable.loc[~ai.train, :].reset_index(drop=True)
 
@@ -159,7 +160,8 @@ def get_initial_graph():
     node_id_top = 0
     layer_id = 0
 
-    prev_records = pd.DataFrame([], columns=records.columns)
+    # prev_records = pd.DataFrame([], columns=records.columns)
+    prev_states = []
     prev_actions = []
 
     last_real_chain_id = -1
@@ -167,7 +169,7 @@ def get_initial_graph():
     predict_action_fn = partial(ai.predict_action, n_branch=lim_action)
 
     for i in range(len(records)):
-        current_state = ai.cluster_state(records.loc[i:i, :])
+        current_state = ai.cluster_state(records.loc[i:i, :])[0]
         # ic(current_state)
         # print(records)
         # print(records.loc[i, :])
@@ -176,9 +178,9 @@ def get_initial_graph():
         io_action = records.loc[i, 'input_4hourly']
 
         vc_action = \
-        [i for i in range(len(ai.vc_bins)) if ai.vc_bins[i][0] <= vc_action and vc_action <= ai.vc_bins[i][2]][0]
+            [i for i in range(len(ai.vc_bins)) if ai.vc_bins[i][0] <= vc_action and vc_action <= ai.vc_bins[i][2]][0]
         io_action = \
-        [i for i in range(len(ai.io_bins)) if ai.io_bins[i][0] <= io_action and io_action <= ai.io_bins[i][2]][0]
+            [i for i in range(len(ai.io_bins)) if ai.io_bins[i][0] <= io_action and io_action <= ai.io_bins[i][2]][0]
 
         actions, actions_poss = predict_action_fn(state_idx=current_state)
 
@@ -186,6 +188,11 @@ def get_initial_graph():
             del_idx = actions.tolist().index(io_action * 5 + vc_action)
             actions = np.array(actions.tolist()[:del_idx] + actions.tolist()[del_idx + 1:])
             actions_poss = np.array(actions_poss.tolist()[:del_idx] + actions_poss.tolist()[del_idx + 1:])
+
+        def action_real_value(action):
+            io_action = action // 5
+            vc_action = action % 5
+            return [str(round(ai.io_bins[io_action][1] * 100) / 100) + 'µg/kg/min', str(round(ai.vc_bins[vc_action][1] * 100) / 100) + 'mL/4h']
 
         graph.append({
             'node_id': node_id_top,
@@ -197,11 +204,12 @@ def get_initial_graph():
             'mortality': ai.state_statics(current_state)['mortality'],
             'prev_node': last_real_chain_id if last_real_chain_id != -1 else 'no_prev',
             'prev_action': last_real_chain_action if last_real_chain_action != -1 else 'no_prev',
-            'record': records.loc[i:i,
-                      RecordPredictor.colbin + RecordPredictor.colnorm + RecordPredictor.collog].to_numpy().tolist(),
+            # 'record': records.loc[i:i,
+            #           RecordPredictor.colbin + RecordPredictor.colnorm + RecordPredictor.collog].to_numpy().tolist(),
             'state_id': int(current_state),
             'actions': [{
                 'action': int(actions[i]),
+                'action_real': action_real_value(int(actions[i])),
                 'possibility': float(actions_poss[i]),
                 'open': True if i == 0 else False,
                 'next_nodes': [],
@@ -212,15 +220,16 @@ def get_initial_graph():
 
         node_id_top += 1
 
-        new_graph, node_id_top = init_graph_one_node(graph[len(graph) - 1], records.loc[i:i, :], ai, state_predictor,
+        new_graph, node_id_top = init_graph_one_node(graph[len(graph) - 1], current_state, ai, state_predictor,
                                                      MAX_LAYER_NUM, lim_action, node_id_top, layer_id,
-                                                     copy.deepcopy(prev_records), copy.deepcopy(prev_actions),
+                                                     copy.deepcopy(prev_states), copy.deepcopy(prev_actions),
                                                      io_action * 5 + vc_action, node_id_top - 1)
 
         graph += new_graph
 
         real_action = {
             'action': io_action * 5 + vc_action,
+            'action_real': [str(records.loc[i, 'input_4hourly']) + 'µg/kg/min', str(records.loc[i, 'max_dose_vaso']) + 'mL/4h'],
             'possibility': 0,
             'real_action': True,
             'open': True,
@@ -228,7 +237,8 @@ def get_initial_graph():
         }
         graph[mark_pos]['actions'] = [real_action] + graph[mark_pos]['actions']
 
-        prev_records = pd.concat([prev_records, records.loc[i:i, :]], ignore_index=True)
+        # prev_records = pd.concat([prev_records, records.loc[i:i, :]], ignore_index=True)
+        prev_states.append(current_state)
         prev_actions.append(io_action * 5 + vc_action)
 
         last_real_chain_id = mark_pos
@@ -263,6 +273,73 @@ def get_initial_graph():
     return {'succeed': True, 'graph': graph}
 
 
+def pred_state_one_node(graph, node_id, node_action):
+    def find_node_by_id(Id):
+        return [x for x in graph if x['node_id'] == Id]
+
+    node = find_node_by_id(node_id)
+    if len(node) == 0:
+        return {'succeed': False, 'info': 'no node with this id.'}
+    node = node[0]
+
+    state_predictor = load_state_predictor()
+
+    prev_states = []
+    prev_actions = []
+
+    cur_node = node
+    cur_next_action = node_action
+    print(cur_node['actions'])
+    cur_next_action_obj = [ac for ac in cur_node['actions'] if ac['action'] == node_action][0]
+    if len(cur_next_action_obj['next_nodes']) > 0:
+        next_node = find_node_by_id(cur_next_action_obj['next_nodes'][0])
+        if len(next_node) > 0:
+            print('node in graph')
+            return next_node[0]['state_id']
+
+    while True:
+        prev_states.append(cur_node['state_id'])
+        prev_actions.append(cur_next_action)
+
+        if cur_node['prev_node'] == 'no_prev':
+            break
+
+        cur_next_action = cur_node['prev_action']
+        cur_node = find_node_by_id(cur_node['prev_node'])[0]
+
+    current_state = state_predictor.predict(prev_states, prev_actions)
+    return current_state
+
+
+@graph_bp.route('/pred_state', methods=['GET'])
+def get_state():
+
+    if save_state['graph'] is None:
+        return {'succeed': False, 'info': 'graph need to be initialized first.'}
+
+    graph = save_state['graph']
+
+    def check_int(s):
+        if s[0] in ('-', '+'):
+            return s[1:].isdigit()
+        return s.isdigit()
+
+    node_id = request.args.get('nodeid')
+
+    node_action = int(request.args.get('nodeaction'))
+
+    if check_int(node_id):
+        current_state = pred_state_one_node(graph, int(node_id), node_action)
+        return {'succeed': True, 'state': current_state}
+    else:
+        node_id_list = list(map(int, node_id.split(',')))
+        states = []
+        for node_id in node_id_list:
+            current_state = pred_state_one_node(graph, int(node_id), node_action)
+            states.append(current_state)
+        return {'succeed': True, 'state': states}
+
+
 @graph_bp.route('/expand', methods=['GET'])
 def get_one_node():
     lim_action = int(request.args.get('actionslimit'))
@@ -290,20 +367,22 @@ def get_one_node():
         return {'succeed': False, 'info': 'this node has been expanded.'}
 
     ai = load_AI_clinician()
-    state_predictor = load_state_autoencoder()
+    state_predictor = load_state_predictor()
 
     records_table = ai.MIMICtable.loc[~ai.train, :].reset_index(drop=True)
 
-    prev_records = pd.DataFrame([], columns=records_table.columns)
+    # prev_records = pd.DataFrame([], columns=records_table.columns)
+    prev_states = []
     prev_actions = []
 
     cur_node = node
     cur_next_action = node['actions'][expand_node_action_id]['action']
 
     while (True):
-        prev_records = pd.concat([pd.DataFrame(cur_node['record'],
-                                               columns=RecordPredictor.colbin + RecordPredictor.colnorm + RecordPredictor.collog),
-                                  prev_records], ignore_index=True)
+        # prev_records = pd.concat([pd.DataFrame(cur_node['record'],
+        #                                        columns=RecordPredictor.colbin + RecordPredictor.colnorm + RecordPredictor.collog),
+        #                           prev_records], ignore_index=True)
+        prev_states.append(cur_node['state_id'])
         prev_actions.append(cur_next_action)
 
         if cur_node['prev_node'] == 'no_prev':
@@ -312,9 +391,7 @@ def get_one_node():
         cur_next_action = cur_node['prev_action']
         cur_node = find_node_by_id(cur_node['prev_node'])[0]
 
-    new_record = state_predictor.predict(prev_records, prev_actions)
-
-    current_state = ai.cluster_state(new_record)
+    current_state = state_predictor.predict(prev_states, prev_actions)
 
     graph.append({
         'node_id': node_id_top,
@@ -327,7 +404,7 @@ def get_one_node():
         'prev_node': expand_node_id,
         'prev_action': node['actions'][expand_node_action_id]['action'],
         'state_id': int(current_state),
-        'record': new_record.to_numpy().tolist(),
+        # 'record': new_record.to_numpy().tolist(),
         'actions': []
     })
     node['actions'][expand_node_action_id]['next_nodes'].append(node_id_top)
@@ -400,89 +477,6 @@ def get_unexpand_one_node():
 
     node['actions'][expand_node_action_id]['next_nodes'] = []
     node['actions'][expand_node_action_id]['open'] = False
-
-    save_state['graph'] = graph
-    return {'succeed': True, 'graph': graph}
-
-
-@graph_bp.route('/show_actions', methods=['GET'])
-def get_actions():
-    lim_action = int(request.args.get('actionslimit'))
-
-    expand_node_id = int(request.args.get('expandnodeid'))
-
-    if save_state['graph'] is None:
-        return {'succeed': False, 'info': 'graph need to be initialized first.'}
-
-    graph = save_state['graph']
-
-    def find_node_by_id(Id):
-        return [x for x in graph if x['node_id'] == Id]
-
-    node = find_node_by_id(expand_node_id)
-    if len(node) == 0:
-        return {'succeed': False, 'info': 'no node with this id.'}
-    node = node[0]
-
-    if node['open']:
-        return {'succeed': False, 'info': 'this node has been expanded.'}
-
-    ai = load_AI_clinician()
-    state_predictor = load_state_autoencoder()
-
-    current_state = ai.cluster_state(pd.DataFrame(node['record'],
-                                                  columns=StateAutoencoder.colbin + StateAutoencoder.colnorm + StateAutoencoder.collog))
-    predict_action_fn = partial(ai.predict_action, n_branch=lim_action)
-
-    actions, actions_poss = predict_action_fn(state_idx=current_state)
-
-    node['actions'] += [{
-        'action': int(actions[i]),
-        'possibility': float(actions_poss[i]),
-        'open': False,
-        'new': True,
-        'next_nodes': [],
-    } for i in range(len(actions)) if actions_poss[i] > 0]
-
-    node['open'] = True
-
-    save_state['graph'] = [{i: node[i] for i in node if i != 'new'} for node in graph]
-    return {'succeed': True, 'graph': graph}
-
-
-@graph_bp.route('/hide_actions', methods=['GET'])
-def get_hide_actions():
-    lim_action = int(request.args.get('actionslimit'))
-
-    expand_node_id = int(request.args.get('expandnodeid'))
-
-    if save_state['graph'] is None:
-        return {'succeed': False, 'info': 'graph need to be initialized first.'}
-    graph = save_state['graph']
-
-    def find_node_by_id(Id):
-        return [x for x in graph if x['node_id'] == Id]
-
-    node = find_node_by_id(expand_node_id)
-    if len(node) == 0:
-        return {'succeed': False, 'info': 'no node with this id.'}
-    node = node[0]
-
-    if not node['open']:
-        return {'succeed': False, 'info': 'node need to be open.'}
-
-    for action in node['actions']:
-
-        if len(action['next_nodes']) == 0:
-            continue
-
-        for next_node in action['next_nodes']:
-            graph = delete_node(graph, next_node)
-
-        action['next_nodes'] = []
-
-    node['actions'] = []
-    node['open'] = False
 
     save_state['graph'] = graph
     return {'succeed': True, 'graph': graph}

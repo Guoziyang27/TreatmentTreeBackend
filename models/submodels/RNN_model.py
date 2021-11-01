@@ -19,8 +19,8 @@ class RNN(nn.Module):
         self.fc = nn.Linear(hidden_dim, output_size)
 
     def forward(self, features):
-        batch_size = features.batch_sizes.max()
-        # batch_size = features.shape[0]
+        # batch_size = features.batch_sizes.max()
+        batch_size = features.shape[0]
         hidden0 = self.init_hidden(batch_size)
         cell0 = self.init_cell(batch_size)
 

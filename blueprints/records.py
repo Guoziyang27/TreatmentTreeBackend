@@ -49,10 +49,15 @@ def get_filtr_init():
         records_table = get_ai_clinician_instance().MIMICtable
         records_table = records_table.loc[~get_ai_clinician_instance().train, :].reset_index(drop=True)
 
+    start_bloc = np.where(records_table['bloc'] == 1)[0].tolist()
+    lengths = [start_bloc[i + 1] - start_bloc[i] if i < len(start_bloc) - 1 else len(records_table) - start_bloc[i] for
+               i in range(len(start_bloc))]
+
     return {'succeed': True, 'filter_index': {
         'gender': [0, 1],
         'age': [records_table.age.min(), records_table.age.max()],
-        'weight': [records_table.Weight_kg.min(), records_table.Weight_kg.max()]
+        'weight': [records_table.Weight_kg.min(), records_table.Weight_kg.max()],
+        'length': [min(lengths), max(lengths)]
     }}
 
 
@@ -66,6 +71,8 @@ def get_filter_records():
     print(age)
     weight = list(map(float, request.args.get('weight').replace("%2C", ",").split(',')))
     print(weight)
+    length = list(map(float, request.args.get('length').replace("%2C", ",").split(',')))
+
     random_limit = int(request.args.get('random'))
 
     global records_table
@@ -79,8 +86,11 @@ def get_filter_records():
     filter_records_index = [
         i for i, pos in enumerate(start_bloc) if records_table.loc[pos, 'gender'] == gender \
                                                  and age[0] <= records_table.loc[pos, 'age'] <= age[1] \
-                                                 and records_table.loc[pos, 'Weight_kg'] >= weight[0] \
-                                                 and records_table.loc[pos, 'Weight_kg'] <= weight[1]]
+                                                 and weight[0] <= records_table.loc[pos, 'Weight_kg'] <= weight[1] \
+                                                 and length[0] <= (start_bloc[i + 1] - start_bloc[i]
+                                                                   if (i < len(start_bloc) - 1)
+                                                                   else len(records_table) - start_bloc[i]) <= length[1]
+    ]
 
     filter_sample = random.sample(filter_records_index,
                                   random_limit if random_limit < len(filter_records_index) else len(
@@ -226,6 +236,32 @@ def get_records_projection():
     return {'succeed': True, 'points': [Y[i].tolist() for i in range(len(start_bloc))]}
 
 
+@records.route('/state_pred_record', methods=['GET'])
+def get_state_pred_record():
+    def check_int(s):
+        if s[0] in ('-', '+'):
+            return s[1:].isdigit()
+        return s.isdigit()
+
+    ai_clinician = get_ai_clinician_instance()
+    state_id = request.args.get('state_id')
+
+    if check_int(state_id):
+        record = ai_clinician.predict_record(int(state_id)).to_numpy().tolist()
+        status = ai_clinician.state_statics(int(state_id))
+        return {'succeed': True, 'record': record, 'status': status}
+    else:
+        state_id_list = list(map(int, state_id.split(',')))
+        records_ = []
+        status_ = []
+        for state_id in state_id_list:
+            record = ai_clinician.predict_record(state_id).to_numpy().tolist()
+            status = ai_clinician.state_statics(state_id)
+            records_.append(record)
+            status_.append(status)
+        return {'succeed': True, 'record': records_, 'status': status_}
+
+
 @records.route('/detail_index', methods=['GET'])
 def get_record_sumerization_index():
     global records_table
@@ -258,8 +294,8 @@ def get_record_sumerization_index():
         'column_id': value_records.columns.tolist().index('GCS'),
         'unit': '',
         'type': 'bin',
-        'bins': [12, 20],
-        'range': [15.0, 15.0],
+        'bins': [13, 15],
+        'range': [0, 15.0],
         'labels': ['Severe', 'Moderate', 'Mild'],
         'colors': [0, 1, 2]
     }, {
@@ -268,7 +304,7 @@ def get_record_sumerization_index():
         'unit': '/L',
         'type': 'range',
         'bins': [4.5, 11],
-        'range': [0.1, 294.5],
+        'range': [0.1, 50],
         'labels': ['Low', 'Normal', 'High'],
         'colors': [4, 5, 6],
     }, {
@@ -295,7 +331,7 @@ def get_record_sumerization_index():
         'unit': 'mg/dL',
         'type': 'range',
         'bins': [0.6, 1.2],
-        'range': [0.0, 117.0],
+        'range': [0.0, 5.0],
         'labels': ['Low', 'Normal', 'High'],
         'colors': [4, 5, 6],
     }, {
