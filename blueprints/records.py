@@ -271,87 +271,106 @@ def get_record_sumerization_index():
 
     value_records = records_table.loc[:, AI_Clinician.colbin + AI_Clinician.colnorm + AI_Clinician.collog]
 
-    normal_index = [{
-        'column_name': 'PaO2_FiO2',
-        'column_id': value_records.columns.tolist().index('PaO2_FiO2'),
-        'unit': 'mmHg',
-        'type': 'bin',
-        'bins': [200, 400],
-        'range': [0.0, 2342.857142857143],
-        'labels': ['Severe', 'Moderate', 'Mild'],
-        'colors': [0, 1, 2]
-    }, {
-        'column_name': 'SysBP',
-        'column_id': value_records.columns.tolist().index('SysBP'),
-        'unit': 'mmHg',
-        'type': 'bin',
-        'bins': [80, 120],
-        'range': [0, 340.5],
-        'labels': ['Normal', 'Prehypertension', 'Hypertension'],
-        'colors': [2, 1, 0]
-    }, {
-        'column_name': 'GCS',
-        'column_id': value_records.columns.tolist().index('GCS'),
-        'unit': '',
-        'type': 'bin',
-        'bins': [13, 15],
-        'range': [0, 15.0],
-        'labels': ['Severe', 'Moderate', 'Mild'],
-        'colors': [0, 1, 2]
-    }, {
-        'column_name': 'WBC_count',
-        'column_id': value_records.columns.tolist().index('WBC_count'),
-        'unit': '/L',
-        'type': 'range',
-        'bins': [4.5, 11],
-        'range': [0.1, 50],
-        'labels': ['Low', 'Normal', 'High'],
-        'colors': [4, 5, 6],
-    }, {
-        'column_name': 'Shock_Index',
-        'column_id': value_records.columns.tolist().index('Shock_Index'),
-        'unit': '',
-        'type': 'range',
-        'bins': [0.5, 0.7],
-        'range': [0, 2],
-        'labels': ['Low', 'Normal', 'High'],
-        'colors': [4, 5, 6],
-    }, {
-        'column_name': 'Arterial_BE',
-        'column_id': value_records.columns.tolist().index('Arterial_BE'),
-        'unit': 'mEq/L',
-        'type': 'range',
-        'bins': [-2, 2],
-        'range': [-50.0, 100.0],
-        'labels': ['Low', 'Normal', 'High'],
-        'colors': [4, 5, 6],
-    }, {
-        'column_name': 'Creatinine',
-        'column_id': value_records.columns.tolist().index('Creatinine'),
-        'unit': 'mg/dL',
-        'type': 'range',
-        'bins': [0.6, 1.2],
-        'range': [0.0, 5.0],
-        'labels': ['Low', 'Normal', 'High'],
-        'colors': [4, 5, 6],
-    }, {
-        'column_name': 'Calcium',
-        'column_id': value_records.columns.tolist().index('Calcium'),
-        'unit': 'mg/dL',
-        'type': 'range',
-        'bins': [8.3, 10.3],
-        'range': [0.0, 14.6],
-        'labels': ['Low', 'Normal', 'High'],
-        'colors': [4, 5, 6],
-    }, {
-        'column_name': 'Platelets_count',
-        'column_id': value_records.columns.tolist().index('Platelets_count'),
-        'unit': 'K/uL',
-        'type': 'range',
-        'bins': [150, 450],
-        'range': [5.0, 1220.0],
-        'labels': ['Low', 'Normal', 'High'],
-        'colors': [4, 5, 6],
-    }]
+    with open('models/data/colindex3.json', 'r') as f:
+        normal_index = json.loads(f.read())['data']
+
+    # normal_index = [{
+    #     'column_name': 'PaO2_FiO2',
+    #     'column_id': value_records.columns.tolist().index('PaO2_FiO2'),
+    #     'unit': 'mmHg',
+    #     'type': 'bin',
+    #     'bins': [200, 400],
+    #     'range': [0.0, 2342.857142857143],
+    #     'labels': ['Severe', 'Moderate', 'Mild'],
+    #     'colors': [0, 1, 2]
+    # }, {
+    #     'column_name': 'SysBP',
+    #     'column_id': value_records.columns.tolist().index('SysBP'),
+    #     'unit': 'mmHg',
+    #     'type': 'bin',
+    #     'bins': [80, 120],
+    #     'range': [0, 340.5],
+    #     'labels': ['Normal', 'Prehypertension', 'Hypertension'],
+    #     'colors': [2, 1, 0]
+    # }, {
+    #     'column_name': 'GCS',
+    #     'column_id': value_records.columns.tolist().index('GCS'),
+    #     'unit': '',
+    #     'type': 'bin',
+    #     'bins': [13, 15],
+    #     'range': [0, 15.0],
+    #     'labels': ['Severe', 'Moderate', 'Mild'],
+    #     'colors': [0, 1, 2]
+    # }, {
+    #     'column_name': 'WBC_count',
+    #     'column_id': value_records.columns.tolist().index('WBC_count'),
+    #     'unit': '/L',
+    #     'type': 'range',
+    #     'bins': [4.5, 11],
+    #     'range': [0.1, 50],
+    #     'labels': ['Low', 'Normal', 'High'],
+    #     'colors': [4, 5, 6],
+    # }, {
+    #     'column_name': 'Shock_Index',
+    #     'column_id': value_records.columns.tolist().index('Shock_Index'),
+    #     'unit': '',
+    #     'type': 'range',
+    #     'bins': [0.5, 0.7],
+    #     'range': [0, 2],
+    #     'labels': ['Low', 'Normal', 'High'],
+    #     'colors': [4, 5, 6],
+    # }, {
+    #     'column_name': 'Arterial_BE',
+    #     'column_id': value_records.columns.tolist().index('Arterial_BE'),
+    #     'unit': 'mEq/L',
+    #     'type': 'range',
+    #     'bins': [-2, 2],
+    #     'range': [-50.0, 100.0],
+    #     'labels': ['Low', 'Normal', 'High'],
+    #     'colors': [4, 5, 6],
+    # }, {
+    #     'column_name': 'Creatinine',
+    #     'column_id': value_records.columns.tolist().index('Creatinine'),
+    #     'unit': 'mg/dL',
+    #     'type': 'range',
+    #     'bins': [0.6, 1.2],
+    #     'range': [0.0, 5.0],
+    #     'labels': ['Low', 'Normal', 'High'],
+    #     'colors': [4, 5, 6],
+    # }, {
+    #     'column_name': 'Calcium',
+    #     'column_id': value_records.columns.tolist().index('Calcium'),
+    #     'unit': 'mg/dL',
+    #     'type': 'range',
+    #     'bins': [8.3, 10.3],
+    #     'range': [0.0, 14.6],
+    #     'labels': ['Low', 'Normal', 'High'],
+    #     'colors': [4, 5, 6],
+    # }, {
+    #     'column_name': 'Platelets_count',
+    #     'column_id': value_records.columns.tolist().index('Platelets_count'),
+    #     'unit': 'K/uL',
+    #     'type': 'range',
+    #     'bins': [150, 450],
+    #     'range': [5.0, 1220.0],
+    #     'labels': ['Low', 'Normal', 'High'],
+    #     'colors': [4, 5, 6],
+    # }, {
+    #     'column_name': 'input4hourly',
+    #     'column_id': value_records.columns.tolist().index('input4hourly'),
+    #     'unit': 'mL',
+    #     'type': 'range',
+    #     'bins': [],
+    #     'range': [0, 600.0],
+    #     'labels': [],
+    # }, {
+    #     'column_name': 'output4hourly',
+    #     'column_id': value_records.columns.tolist().index('output4hourly'),
+    #     'unit': 'mL',
+    #     'type': 'range',
+    #     'bins': [],
+    #     'range': [0, 600.0],
+    #     'labels': [],
+    # }]
 
     return {'succeed': True, 'details_index': normal_index}
