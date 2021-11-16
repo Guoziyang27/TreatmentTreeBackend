@@ -1,21 +1,50 @@
 # Backend of TreatmentTree
 
-## Get Started
-
-### Install
+## Install
 
    Install from `requirements.txt`
    ```
    python -m pip install -r requirements.txt
    ```
 
-### Prepare Model Data
+## Prepare MIMIC-IV Data
 
-Download data from https://drive.google.com/file/d/1dYNH50dQWkwvH-lCmZOHXZcc-Dq-wums/view?usp=sharing
+Get access to MIMIC-IV from https://physionet.org/content/mimiciv/1.0/. Then select "Request access using Google BigQuery".
 
-Unzip it and put it under this folder `models/`.
+<img src="./assets/access_to_mimiciv.png"/>
 
-### Start Backend
+Setting up your client credentials if needed. Here is a guide for using client credential to authenticate the API:
+
+https://cloud.google.com/bigquery/docs/authentication/end-user-installed
+
+<img src="./assets/manually_creating_credentials.png"/>
+
+Put `client_secrets.json` under `pre-process/`.
+
+Extract data and preprocess it.
+
+```shell
+cd pre-process/
+mkdir extracted_data/
+python data_extract_MIMICIV.py
+cd extracted_data/
+python preprocess.py
+```
+
+## Train Models
+
+### AI Clinician
+
+```shell
+cd pre-process/
+python main.py
+```
+
+### Patient's State Predictor
+
+
+
+## Start Backend
 
 ```
 python app.py

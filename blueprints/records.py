@@ -271,7 +271,7 @@ def get_record_sumerization_index():
 
     value_records = records_table.loc[:, AI_Clinician.colbin + AI_Clinician.colnorm + AI_Clinician.collog]
 
-    with open('models/data/colindex3.json', 'r') as f:
+    with open('models/data/colindex.json', 'r') as f:
         normal_index = json.loads(f.read())['data']
 
     # normal_index = [{
