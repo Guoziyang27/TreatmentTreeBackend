@@ -8,6 +8,7 @@ from functools import partial
 import random
 
 from flask import Blueprint, request
+from tqdm import tqdm
 
 from icecream import ic
 import os
@@ -130,10 +131,10 @@ def get_init():
     ai_clinician_instance = get_ai_clinician_instance()
 
     records_state = [int(ai_clinician_instance.cluster_state(records_table.loc[i:i, :])) for i in
-                     range(len(records_table))]
+                     tqdm(range(len(records_table)), desc='init records 1/3')]
 
     records_action = []
-    for i in range(len(records_table)):
+    for i in tqdm(range(len(records_table)), desc='init records 2/3'):
         vc_action = records_table.loc[i, 'max_dose_vaso']
         io_action = records_table.loc[i, 'input_4hourly']
 
@@ -146,7 +147,7 @@ def get_init():
 
         records_action.append(io_action * 5 + vc_action)
 
-    records_status = [ai_clinician_instance.state_statics(state) for state in records_state]
+    records_status = [ai_clinician_instance.state_statics(state) for state in tqdm(records_state, desc='init records 3/3')]
 
     result = {'succeed': True, 'records': [{
         'states': records_state[pos:start_bloc[i + 1]] \
