@@ -1,21 +1,60 @@
 # Backend of TreatmentTree
 
-## Get Started
-
-### Install
+## Install
 
    Install from `requirements.txt`
-   ```
+   ```shell
    python -m pip install -r requirements.txt
    ```
 
-### Prepare Model Data
+We also use a python matlab engine to call matlab functions. This requires installing the MatLab Engine API.
+```shell
+cd {matlabroot}/extern/engines/python
+python setup.py install
+```
+More information can be found on https://www.mathworks.com/help/matlab/matlab-engine-for-python.html
 
-Download data from https://drive.google.com/file/d/1dYNH50dQWkwvH-lCmZOHXZcc-Dq-wums/view?usp=sharing
+## Prepare MIMIC-IV Data
 
-Unzip it and put it under this folder `models/`.
+Get access to MIMIC-IV from https://physionet.org/content/mimiciv/1.0/. Then select "Request access using Google BigQuery".
 
-### Start Backend
+<img src="./assets/access_to_mimiciv.png"/>
+
+Setting up your client credentials if needed. Here is a guide for using client credential to authenticate the API:
+
+https://cloud.google.com/bigquery/docs/authentication/end-user-installed
+
+<img src="./assets/manually_creating_credentials.png"/>
+
+Put `client_secrets.json` under `AI_Clinician_python_replication/`.
+
+Extract data and preprocess it.
+
+```shell
+cd AI_Clinician_python_replication/
+python data_extract_MIMICIV.py
+cd extracted_data/
+python preprocess.py
+```
+
+## Train Models
+
+### AI Clinician
+
+```shell
+cd AI_Clinician_python_replication/
+python main.py
+```
+*This processing maybe cost several hours...*
+
+### Patient's State Predictor
+
+```shell
+cd models/submodels/
+python train.py
+```
+
+## Start Backend
 
 ```
 python app.py
