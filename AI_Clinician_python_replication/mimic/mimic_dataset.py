@@ -300,9 +300,6 @@ def mimicDataset():
 
     reformat = reformat.drop(range(irow, len(reformat))).reset_index(drop=True)
 
-    reformat.to_csv('init_reformat.csv', index=False, sep=',')
-    qstime.to_csv('init_qstime.csv', sep=',')
-
     # reformat = pd.read_csv('init_reformat.csv')
     # reformat.columns = range(1,69)
     # qstime = pd.read_csv('init_qstime.csv', index_col='Unnamed: 0')
@@ -519,11 +516,8 @@ def mimicDataset():
     reformat.loc[ii[reformatsah.loc[ii, 25] <= 6], 23] = 44
     reformat.loc[ii[reformatsah.loc[ii, 25] <= 5], 23] = 40
     reformat.loc[ii[reformatsah.loc[ii, 25] <= 4], 23] = 36
-    print('1')
     reformat.loc[ii[reformatsah.loc[ii, 25] <= 3], 23] = 32
-    print('1')
     reformat.loc[ii[reformatsah.loc[ii, 25] <= 2], 23] = 28
-    print('1')
     reformat.loc[ii[reformatsah.loc[ii, 25] <= 1], 23] = 24
     print('[DONE]')
 
