@@ -145,3 +145,13 @@ test_model/
 
 .idea/
 
+restore/*
+
+*/extracted_data/*.csv
+*/extracted_data/*.csv.bak
+models/submodels/*.pkl
+models/submodels/*.pt
+models/submodels/*.npy
+models/submodels/*.pth
+
+*/client_secret.json
