@@ -55,7 +55,7 @@ class RecordPredictor:
         self.action_mean = torch.load(opt['mean_save'])
         self.action_std = torch.load(opt['std_save'])
 
-        self.MIMICtable = pd.read_csv('models/data/final_table.csv')
+        self.MIMICtable = pd.read_csv('models/data/mimic_record.csv')
 
         with open('models/data/MIMICraw.npy', 'rb') as f:
             MIMICraw = np.load(f, allow_pickle=True)

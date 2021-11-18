@@ -36,7 +36,7 @@ def move_to_cuda(sample):
 class Dataset(data.Dataset):
     def __init__(self, ae_model, opt):
         # if not os.path.isfile(dump_sequences_path):
-        MIMICtable = pd.read_csv('../data/final_table.csv')
+        MIMICtable = pd.read_csv('../data/mimic_record.csv')
         MIMICarray = MIMICtable.to_numpy()
 
         ai_clinician = get_instance('../data/')
