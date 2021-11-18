@@ -11,10 +11,11 @@ from scipy.io import savemat
 from offpolicy import offpolicy_multiple_eval_010518, offpolicy_eval_tdlearning_with_morta
 import matplotlib.pyplot as plt
 import matlab.engine
+import numpy.matlib
 
 
 output_dir = '../models/data/'
-data_dir = '../sepsis_data/'
+data_dir = '../models/data/'
 
 
 def AI_Clinician_core(MIMICtable):
@@ -373,6 +374,7 @@ def AI_Clinician_core(MIMICtable):
 def test_model():
     MIMICtable = pd.read_csv(data_dir + 'mimic_record.csv')
 #region load model
+    matlab_eng = matlab.engine.start_matlab()
 
     nr_reps = 200               # nr of repetitions (total nr models)
     # nr_reps = 1
@@ -503,24 +505,27 @@ def test_model():
     qldata3test = allpols[ii, 11][0]
     # qldata2 = allpols[ii, 12][0]
 
-    kmeans = KMeans(n_clusters=ncl, random_state=0, n_init=nclustering, max_iter=30, n_jobs=2).fit(C)
+    # kmeans = KMeans(n_clusters=ncl, random_state=0, n_init=nclustering, max_iter=30, n_jobs=2).fit(C)
 
-    idx = kmeans.predict(MIMICzs[train, :])  #N-D nearest point search: look for points closest to each centroid
-    OptimalAction = Qon.argmax(axis=1)  #deterministic 
+    # idx = kmeans.predict(MIMICzs[train, :])  #N-D nearest point search: look for points closest to each centroid
+    # idx = np.asarray(matlab_eng.knnsearch(C, matlab.double(MIMICzs[train, :].tolist())), dtype='int').reshape(-1) - 1
 
-    idxtest = kmeans.predict(MIMICzs[test, :]) #np.hstack(idxs[test, int(a[ii])])          #state of records from training set
-    actionbloctrain = actionbloc[train]
-    actionbloctest = actionbloc[test]        #actionbloc is constant across clustering solutions
-    Y90 = reformat5[train, outcome]
-    Y90test =  reformat5[test, outcome]
-    blocs = reformat5[train, 0]
-    bloctestmimic = reformat5[test, 0]
-    vcl = reformat5[test, vcl] # TODO: use vcl here.
-    iol = reformat5[test, iol]
-    ptid = reformat5[train, 1]
-    ptidtestmimic = reformat5[test, 1]
+    OptimalAction = Qon.argmax(axis=1)  #deterministic
 
-    idxtestint = idxtest.astype('int64')
+    # idxtest = kmeans.predict(MIMICzs[test, :]) #np.hstack(idxs[test, int(a[ii])])          #state of records from training set
+    idxtest = np.asarray(matlab_eng.knnsearch(matlab.double(C.tolist()), matlab.double(MIMICzs[test, :].tolist())), dtype='int').reshape(-1) - 1
+    # actionbloctrain = actionbloc[train]
+    # actionbloctest = actionbloc[test]        #actionbloc is constant across clustering solutions
+    # Y90 = reformat5[train, outcome]
+    # Y90test =  reformat5[test, outcome]
+    # blocs = reformat5[train, 0]
+    # bloctestmimic = reformat5[test, 0]
+    # vcl = reformat5[test, vcl]
+    # iol = reformat5[test, iol]
+    # ptid = reformat5[train, 1]
+    # ptidtestmimic = reformat5[test, 1]
+
+    # idxtestint = idxtest.astype('int64')
 
 #endregion
 
@@ -528,9 +533,10 @@ def test_model():
 ##### SOME TEST WORK
 #region figures
     fig = plt.figure(figsize=(20, 10))
-
-    bootmimictestql, bootmimictestwis = offpolicy_multiple_eval_010518(qldata3test, physpol, 0.99,1,500,80)
-    bootmimictestql = np.matlib.repmat(bootmimictestql, int(np.floor(len(bootmimictestwis)/ len(bootmimictestql))), 1).ravel()
+    print("test ql and wis", end='')
+    bootmimictestql, bootmimictestwis = offpolicy_multiple_eval_010518(qldata3test, physpol, 0.99,1,20,80)
+    bootmimictestql = np.tile(bootmimictestql, [int(np.floor(len(bootmimictestwis)/ len(bootmimictestql))), 1]).ravel()
+    print("[DONE]")
 
     counts, _, _ = np.histogram2d(bootmimictestql, bootmimictestwis, bins=(np.arange(-105, 103, 2.5), np.arange(-105, 103, 2.5)))
     counts = counts.T
@@ -607,9 +613,9 @@ def test_model():
     prop = 10000 / len(p)
     prop = min(prop, 0.75)
 
-    qldata = np.zeros([len(qldata3test[qldata3test[:, 2] != 0, :]), 18]) # TODO
+    qldata = np.zeros([len(qldata3test[qldata3test[:, 2] != -1, :]), 18]) # TODO
 
-    qldata[:, :13] = qldata3test[qldata3test[:, 2] != 0, :]
+    qldata[:, :13] = qldata3test[qldata3test[:, 2] != -1, :]
     qldata[:, 13] = qldata[:, 9] - qldata[:, 11]
     qldata[:, 14] = qldata[:, 8] - qldata[:, 10]
 
