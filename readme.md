@@ -6,7 +6,6 @@
    ```shell
    python -m pip install -r requirements.txt
    ```
-
 We also use a python matlab engine to call matlab functions. This requires installing the MatLab Engine API.
 ```shell
 cd {matlabroot}/extern/engines/python
@@ -53,7 +52,6 @@ python main.py
 cd models/submodels/
 python train.py
 ```
-
 ## Start Backend
 
 ```

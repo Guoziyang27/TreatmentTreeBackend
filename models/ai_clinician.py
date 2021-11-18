@@ -109,9 +109,6 @@ class AI_Clinician:
         # SORT RECQVI BY COL 24 / DESC
         bestpol = r[max(r[:, 23]) == r[:, 23], 0]  # model maximising 95# LB of value of AI policy in MIMIC test set
 
-
-        print(bestpol, allpols[:, 0], r, max(r[:, 23]))
-
         ## RECOVER BEST MODEL and TEST IT
         print('Recovering the best model ', end='')
         a = np.hstack(allpols[:, 0])
