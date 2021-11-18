@@ -6,9 +6,9 @@ from mimic.sample_name import *
 from AI_Clinician_core import AI_Clinician_core, test_model
 
 def main():
-    # MIMICtable = mimicDataset()
+    MIMICtable = mimicDataset()
 
-    # AI_Clinician_core(MIMICtable)
+    AI_Clinician_core(MIMICtable)
 
     test_model()
 
