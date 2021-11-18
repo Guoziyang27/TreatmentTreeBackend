@@ -17,7 +17,7 @@ def mimicDataset():
     data_dir = 'extracted_data/'
     output_dir = '../models/data/'
 
-    if os.path.isdir(output_dir):
+    if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
 
     if os.path.isfile(output_dir + 'mimic_record.csv'):

@@ -19,7 +19,7 @@ data_dir = '../sepsis_data/'
 
 def AI_Clinician_core(MIMICtable):
 
-    if os.path.isdir(output_dir):
+    if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
 
     # ############################  MODEL PARAMETERS   #####################################
